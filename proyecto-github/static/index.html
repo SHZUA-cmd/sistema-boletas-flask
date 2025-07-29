@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Boletas</title>
+    <style>
+        :root {
+            --primary-color: #007bff; --secondary-color: #6c757d; --background-color: #f8f9fa;
+            --surface-color: #ffffff; --text-color: #212529; --border-color: #dee2e6; --error-color: #dc3545;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0; background-color: var(--background-color); color: var(--text-color); line-height: 1.5;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .card {
+            background-color: var(--surface-color); border: 1px solid var(--border-color);
+            border-radius: 0.5rem; padding: 2rem; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        .form-grid { display: grid; gap: 1.5rem; }
+        .form-group { display: flex; flex-direction: column; }
+        label { margin-bottom: 0.5rem; font-weight: 600; }
+        input, select, textarea {
+            width: 100%; padding: 0.75rem; border: 1px solid var(--border-color);
+            border-radius: 0.25rem; font-size: 1rem; box-sizing: border-box;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem; border: none; border-radius: 0.25rem; cursor: pointer;
+            font-size: 1rem; font-weight: 600; text-align: center; text-decoration: none; display: inline-block;
+        }
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-danger { background-color: var(--error-color); color: white; }
+        .hidden { display: none; }
+        #error-message { color: var(--error-color); margin-top: 1rem; text-align: center; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .table-container { width: 100%; overflow-x: auto; }
+        .responsive-table { width: 100%; border-collapse: collapse; }
+        .responsive-table thead { background-color: var(--primary-color); color: white; }
+        .responsive-table th, .responsive-table td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        @media screen and (max-width: 768px) {
+            .responsive-table thead { display: none; }
+            .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td { display: block; width: 100%; }
+            .responsive-table tr { margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 0.25rem; }
+            .responsive-table td { text-align: right; padding-left: 50%; position: relative; border-bottom: none; }
+            .responsive-table td:before {
+                content: attr(data-label); position: absolute; left: 1rem;
+                width: calc(50% - 2rem); padding-right: 1rem; font-weight: 600; text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="login-view" class="container">
+        <div class="card">
+            <h1>Iniciar Sesión</h1>
+            <form id="login-form" class="form-grid">
+                <div class="form-group">
+                    <label for="username">Nombre de Usuario</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Ingresar</button>
+            </form>
+            <p id="login-error" class="hidden" style="color: var(--error-color); text-align: center; margin-top: 1rem;"></p>
+        </div>
+    </div>
+
+    <div id="dashboard-view" class="container hidden">
+        <header>
+            <h1>Dashboard de Boletas</h1>
+            <button id="logout-btn" class="btn btn-danger">Cerrar Sesión</button>
+        </header>
+
+        <div class="card" style="margin-bottom: 2rem;">
+            <h2>Agregar Nueva Boleta</h2>
+            <form id="boleta-form" class="form-grid">
+                <div class="form-group">
+                    <label for="fecha">Fecha</label>
+                    <input type="date" id="fecha" required>
+                </div>
+                <div class="form-group">
+                    <label for="monto">Monto Total</label>
+                    <input type="number" step="0.01" id="monto" required>
+                </div>
+                <div class="form-group">
+                    <label for="categoria">Categoría</label>
+                    <select id="categoria" required>
+                        <option value="Comida">Comida</option>
+                        <option value="Transporte">Transporte</option>
+                        <option value="Alojamiento">Alojamiento</option>
+                        <option value="Varios">Varios</option>
+                    </select>
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label for="notas">Notas</label>
+                    <textarea id="notas" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Agregar Boleta</button>
+            </form>
+             <p id="boleta-error" class="hidden" style="color: var(--error-color); text-align: center; margin-top: 1rem;"></p>
+        </div>
+
+        <div class="card">
+            <h2>Mis Boletas</h2>
+            <div class="table-container">
+                <table class="responsive-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Categoría</th>
+                            <th>Monto Total</th>
+                            <th>Notas</th>
+                        </tr>
+                    </thead>
+                    <tbody id="boletas-table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const API_URL = '/api';
+            const loginView = document.getElementById('login-view');
+            const dashboardView = document.getElementById('dashboard-view');
+            const loginForm = document.getElementById('login-form');
+            const boletaForm = document.getElementById('boleta-form');
+            const logoutBtn = document.getElementById('logout-btn');
+            const boletasTableBody = document.getElementById('boletas-table-body');
+            const loginError = document.getElementById('login-error');
+            const boletaError = document.getElementById('boleta-error');
+
+            async function apiFetch(endpoint, options = {}) {
+                const token = localStorage.getItem('accessToken');
+                const headers = { 'Content-Type': 'application/json', ...options.headers };
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ msg: 'Error desconocido' }));
+                    throw new Error(errorData.msg || `Error ${response.status}`);
+                }
+                if (response.status === 204) {
+                    return null;
+                }
+                return response.json();
+            }
+
+            function showView(view) {
+                loginView.classList.add('hidden');
+                dashboardView.classList.add('hidden');
+                view.classList.remove('hidden');
+            }
+
+            async function loadBoletas() {
+                try {
+                    const boletas = await apiFetch('/boletas');
+                    boletasTableBody.innerHTML = '';
+                    boletas.forEach(boleta => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td data-label="Fecha">${boleta.fecha}</td>
+                            <td data-label="Categoría">${boleta.categoria}</td>
+                            <td data-label="Monto Total">${boleta.monto_total.toFixed(2)}</td>
+                            <td data-label="Notas">${boleta.notas || ''}</td>
+                        `;
+                        boletasTableBody.appendChild(row);
+                    });
+                } catch (error) {
+                    console.error('Error al cargar boletas:', error);
+                    if (error.message.includes('Token')) {
+                        logout();
+                    }
+                }
+            }
+
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                loginError.classList.add('hidden');
+                try {
+                    const data = await apiFetch('/login', {
+                        method: 'POST',
+                        body: JSON.stringify({ username, password })
+                    });
+                    localStorage.setItem('accessToken', data.access_token);
+                    showView(dashboardView);
+                    loadBoletas();
+                    loginForm.reset();
+                } catch (error) {
+                    loginError.textContent = `Error de inicio de sesión: ${error.message}`;
+                    loginError.classList.remove('hidden');
+                }
+            });
+
+            function logout() {
+                localStorage.removeItem('accessToken');
+                showView(loginView);
+            }
+            logoutBtn.addEventListener('click', logout);
+
+            boletaForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const boletaData = {
+                    fecha: document.getElementById('fecha').value,
+                    monto_total: document.getElementById('monto').value,
+                    categoria: document.getElementById('categoria').value,
+                    notas: document.getElementById('notas').value,
+                };
+                boletaError.classList.add('hidden');
+                try {
+                    await apiFetch('/boletas/manual', {
+                        method: 'POST',
+                        body: JSON.stringify(boletaData)
+                    });
+                    boletaForm.reset();
+                    loadBoletas();
+                } catch (error) {
+                    boletaError.textContent = `Error al agregar boleta: ${error.message}`;
+                    boletaError.classList.remove('hidden');
+                }
+            });
+
+            if (localStorage.getItem('accessToken')) {
+                showView(dashboardView);
+                loadBoletas();
+            } else {
+                showView(loginView);
+            }
+        });
+    </script>
+</body>
+</html>
