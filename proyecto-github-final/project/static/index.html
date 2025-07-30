@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Boletas</title>
+    <style>
+        /* --- Estilos Globales y Variables de Color --- */
+        :root {
+            --primary-color: #007bff; --secondary-color: #6c757d; --background-color: #f8f9fa;
+            --surface-color: #ffffff; --text-color: #212529; --border-color: #dee2e6; --error-color: #dc3545;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0; background-color: var(--background-color); color: var(--text-color); line-height: 1.5;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .card {
+            background-color: var(--surface-color); border: 1px solid var(--border-color);
+            border-radius: 0.5rem; padding: 2rem; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+        .form-group { display: flex; flex-direction: column; }
+        label { margin-bottom: 0.5rem; font-weight: 600; }
+        input, select, textarea {
+            width: 100%; padding: 0.75rem; border: 1px solid var(--border-color);
+            border-radius: 0.25rem; font-size: 1rem; box-sizing: border-box;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem; border: none; border-radius: 0.25rem; cursor: pointer;
+            font-size: 1rem; font-weight: 600; text-align: center; text-decoration: none; display: inline-block;
+        }
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-danger { background-color: var(--error-color); color: white; }
+        .btn-secondary { background-color: var(--secondary-color); color: white; }
+        .hidden { display: none; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        
+        /* --- Estilos para la Tabla, Pestañas y Botones Específicos --- */
+        .table-container { width: 100%; overflow-x: auto; }
+        .responsive-table { width: 100%; border-collapse: collapse; }
+        .responsive-table thead { background-color: var(--primary-color); color: white; }
+        .responsive-table th, .responsive-table td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .actions-cell button { background: none; border: none; cursor: pointer; font-size: 1.2rem; margin: 0 0.25rem;}
+        
+        #dashboard-nav { margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); }
+        #dashboard-nav .btn { border-radius: 0.25rem 0.25rem 0 0; background-color: var(--background-color); color: var(--primary-color); border: 1px solid var(--border-color); border-bottom: none; margin-bottom: -1px; }
+        #dashboard-nav .btn.active { background-color: var(--surface-color); font-weight: bold; }
+        
+        .password-toggle-btn {
+            position: absolute;
+            top: 50%;
+            right: 1rem;
+            transform: translateY(50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--secondary-color);
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        /* --- Estilos Responsivos para Móviles --- */
+        @media screen and (max-width: 768px) {
+            .responsive-table thead { display: none; }
+            .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td { display: block; width: 100%; }
+            .responsive-table tr { margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 0.25rem; }
+            .responsive-table td { text-align: right; padding-left: 50%; position: relative; border-bottom: none; }
+            .responsive-table td:before {
+                content: attr(data-label); position: absolute; left: 1rem;
+                width: calc(50% - 2rem); padding-right: 1rem; font-weight: 600; text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="login-view" class="container">
+        <div class="card">
+            <h1>Iniciar Sesión</h1>
+            <form id="login-form" class="form-grid">
+                <div class="form-group">
+                    <label for="username">Nombre de Usuario</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group" style="position: relative;">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" required>
+                    <button type="button" id="toggle-password-btn" class="password-toggle-btn">Mostrar</button>
+                </div>
+                <button type="submit" class="btn btn-primary">Ingresar</button>
+            </form>
+            <p id="login-error" class="hidden" style="color: var(--error-color); text-align: center; margin-top: 1rem;"></p>
+        </div>
+    </div>
+
+    <div id="dashboard-view" class="container hidden">
+        <header>
+            <h1>Dashboard de Boletas</h1>
+            <button id="logout-btn" class="btn btn-danger">Cerrar Sesión</button>
+        </header>
+
+        <div id="dashboard-nav">
+            <button id="nav-search-btn" class="btn active">Buscar Boletas</button>
+            <button id="nav-add-btn" class="btn">Agregar Boleta</button>
+            <button id="nav-admin-btn" class="btn hidden">Panel de Admin</button>
+        </div>
+
+        <div id="add-boleta-view" class="hidden">
+            <div class="card">
+                <h2 id="form-title">Agregar Nueva Boleta</h2>
+                <form id="boleta-form" class="form-grid">
+                    <input type="hidden" id="edit-boleta-id">
+                    <input type="hidden" id="razon-modificacion-input">
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="boleta-file">Paso 1: Subir Imagen de Boleta</label>
+                        <input type="file" id="boleta-file" accept="image/*">
+                        <img id="boleta-preview" class="hidden" style="max-width: 200px; margin-top: 1rem; border: 1px solid var(--border-color);">
+                    </div>
+                    <button type="button" id="upload-btn" class="btn btn-secondary">Paso 2: Leer Datos de Imagen</button>
+                    <div id="form-details-container" class="hidden" style="grid-column: 1 / -1; display: contents;">
+                        <hr style="grid-column: 1 / -1; border: 1px solid var(--border-color); margin: 0;">
+                        <div class="form-group"><label for="fecha">Fecha</label><input type="date" id="fecha" required></div>
+                        <div class="form-group"><label for="monto">Monto Total (CLP)</label><input type="number" step="1" id="monto" required></div>
+                        <div class="form-group"><label for="categoria">Categoría</label><select id="categoria" required></select></div>
+                        <div class="form-group" style="grid-column: 1 / -1;"><label for="notas">Notas</label><textarea id="notas" rows="3"></textarea></div>
+                        <div class="form-group" style="grid-column: 1 / -1;"><label><input type="checkbox" id="datos-modificados-check" disabled> Datos Corregidos Manualmente</label></div>
+                        <button type="submit" id="submit-boleta-btn" class="btn btn-primary">Paso 3: Agregar Boleta</button>
+                    </div>
+                </form>
+                 <p id="boleta-error" class="hidden" style="color: var(--error-color); text-align: center; margin-top: 1rem;"></p>
+            </div>
+        </div>
+
+        <div id="search-boletas-view">
+            <div class="card" style="margin-bottom: 2rem;">
+                <h2>Filtros de Búsqueda</h2>
+                <form id="filter-form" class="form-grid">
+                    <div class="form-group"><label for="filter-creador">Creador</label><input type="text" id="filter-creador" placeholder="Nombre de usuario"></div>
+                    <div class="form-group"><label for="filter-fecha-inicio">Fecha Desde</label><input type="date" id="filter-fecha-inicio"></div>
+                    <div class="form-group"><label for="filter-fecha-fin">Fecha Hasta</label><input type="date" id="filter-fecha-fin"></div>
+                    <div class="form-group"><label for="filter-categoria">Categoría</label><select id="filter-categoria"><option value="">Todas</option></select></div>
+                    <div class="form-group">
+                        <label for="filter-razon">Tipo de Modificación</label>
+                        <select id="filter-razon">
+                            <option value="">Todas</option>
+                            <option value="Baja Calidad">Baja Calidad OCR</option>
+                            <option value="Corrección Manual">Corrección Manual</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="align-self: flex-end;"><button type="submit" class="btn btn-primary">Aplicar Filtros</button></div>
+                </form>
+            </div>
+            <div class="card">
+                <h2>Mis Boletas</h2>
+                <div class="table-container">
+                    <table class="responsive-table">
+                        <thead><tr><th>Fecha</th><th>Categoría</th><th>Monto Total</th><th>Notas</th><th>Creador</th><th>Imagen</th><th>Acciones</th></tr></thead>
+                        <tbody id="boletas-table-body"></tbody>
+                    </table>
+                </div>
+                <div id="pagination-controls" style="text-align: center; margin-top: 1.5rem;"></div>
+            </div>
+        </div>
+        
+        <div id="admin-view" class="hidden">
+            <div class="card">
+                <h2>Crear Nuevo Usuario</h2>
+                <form id="create-user-form" class="form-grid">
+                    <div class="form-group"><label for="new-username">Nombre de Usuario</label><input type="text" id="new-username" required></div>
+                    <div class="form-group" style="position: relative;"><label for="new-password">Contraseña</label><input type="password" id="new-password" required><button type="button" id="toggle-new-password-btn" class="password-toggle-btn">Mostrar</button></div>
+                    <div class="form-group" style="justify-content: center;"><label><input type="checkbox" id="is-admin-check"> ¿Es Administrador?</label></div>
+                    <div class="form-group" style="align-self: flex-end;"><button type="submit" class="btn btn-primary">Crear Usuario</button></div>
+                </form>
+                <p id="create-user-error" class="hidden" style="color: var(--error-color); text-align: center; margin-top: 1rem;"></p>
+                <p id="create-user-success" class="hidden" style="color: green; text-align: center; margin-top: 1rem;"></p>
+            </div>
+            <div class="card" style="margin-top: 2rem;">
+                <h2>Gestionar Categorías</h2>
+                <form id="category-form" class="form-grid">
+                    <div class="form-group"><label for="new-category-name">Nombre de la Nueva Categoría</label><input type="text" id="new-category-name" required></div>
+                    <div class="form-group" style="align-self: flex-end;"><button type="submit" class="btn btn-primary">Agregar Categoría</button></div>
+                </form>
+                <p id="category-error" class="hidden" style="color: var(--error-color); text-align: center; margin-top: 1rem;"></p>
+                <div class="table-container" style="margin-top: 2rem;">
+                    <table class="responsive-table"><thead><tr><th>Nombre</th><th>Acciones</th></tr></thead><tbody id="categories-table-body"></tbody></table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- CONSTANTES Y VARIABLES GLOBALES ---
+    const API_URL = '/api';
+
+    // Referencias a los elementos principales de la interfaz
+    const loginView = document.getElementById('login-view');
+    const dashboardView = document.getElementById('dashboard-view');
+    const navSearchBtn = document.getElementById('nav-search-btn');
+    const navAddBtn = document.getElementById('nav-add-btn');
+    const navAdminBtn = document.getElementById('nav-admin-btn');
+    const addBoletaView = document.getElementById('add-boleta-view');
+    const searchBoletasView = document.getElementById('search-boletas-view');
+    const adminView = document.getElementById('admin-view');
+
+    // Referencias a formularios y sus elementos
+    const loginForm = document.getElementById('login-form');
+    const boletaForm = document.getElementById('boleta-form');
+    const createUserForm = document.getElementById('create-user-form');
+    const categoryForm = document.getElementById('category-form');
+    const filterForm = document.getElementById('filter-form');
+
+    // Referencias a elementos para mostrar errores y éxito
+    const loginError = document.getElementById('login-error');
+    const boletaError = document.getElementById('boleta-error');
+    const createUserError = document.getElementById('create-user-error');
+    const createUserSuccess = document.getElementById('create-user-success');
+    const categoryError = document.getElementById('category-error');
+
+    // Referencias a otros elementos interactivos
+    const logoutBtn = document.getElementById('logout-btn');
+    const boletasTableBody = document.getElementById('boletas-table-body');
+    const categoriesTableBody = document.getElementById('categories-table-body');
+    const paginationControls = document.getElementById('pagination-controls');
+    const passwordInput = document.getElementById('password');
+    const togglePasswordBtn = document.getElementById('toggle-password-btn');
+    const newPasswordInput = document.getElementById('new-password');
+    const toggleNewPasswordBtn = document.getElementById('toggle-new-password-btn');
+    const submitBoletaBtn = document.getElementById('submit-boleta-btn');
+    const formTitle = document.getElementById('form-title');
+    const boletaFileInput = document.getElementById('boleta-file');
+    const uploadBtn = document.getElementById('upload-btn');
+    const boletaPreview = document.getElementById('boleta-preview');
+    const formDetailsContainer = document.getElementById('form-details-container');
+    const fechaInput = document.getElementById('fecha');
+    const montoInput = document.getElementById('monto');
+    const datosModificadosCheck = document.getElementById('datos-modificados-check');
+    const razonModificacionInput = document.getElementById('razon-modificacion-input');
+
+    // Variable para guardar los datos originales del OCR
+    let ocrData = { fecha: null, monto: null };
+
+            // --- FUNCIONES PRINCIPALES DE LA UI ---
+
+            /**
+             * Cambia entre las pestañas "Buscar", "Agregar" y "Admin" dentro del dashboard.
+             * @param {string} tabToShow - La pestaña a mostrar ('add', 'search', o 'admin').
+             */
+            function showDashboardTab(tabToShow) {
+                addBoletaView.classList.add('hidden'); searchBoletasView.classList.add('hidden'); adminView.classList.add('hidden');
+                navAddBtn.classList.remove('active'); navSearchBtn.classList.remove('active'); navAdminBtn.classList.remove('active');
+                if (tabToShow === 'add') { addBoletaView.classList.remove('hidden'); navAddBtn.classList.add('active'); } 
+                else if (tabToShow === 'admin') { adminView.classList.remove('hidden'); navAdminBtn.classList.add('active'); loadCategories(); } 
+                else { searchBoletasView.classList.remove('hidden'); navSearchBtn.classList.add('active'); }
+            }
+            
+            /**
+             * Marca el check de "Datos Corregidos" si los valores del formulario
+             * difieren de los extraídos por el OCR.
+             */
+            const checkForManualChanges = () => { if (fechaInput.value !== ocrData.fecha || montoInput.value !== ocrData.monto) { razonModificacionInput.value = 'Corrección Manual'; document.getElementById('datos-modificados-check').checked = true; } };
+            
+            /**
+             * Función auxiliar para realizar peticiones fetch a la API.
+             * Añade la API Key a las cabeceras y maneja errores comunes.
+             */
+            async function apiFetch(endpoint, options = {}) {
+                const apiKey = localStorage.getItem('apiKey');
+                const headers = { 'Content-Type': 'application/json', ...options.headers };
+                if (apiKey) { headers['X-Api-Key'] = apiKey; }
+                const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ msg: 'Error desconocido' }));
+                    throw new Error(errorData.msg || `Error ${response.status}`);
+                }
+                if (response.status === 204) { return null; }
+                return response.json();
+            }
+            
+            /**
+             * Controla la visibilidad de las vistas principales (login o dashboard).
+             */
+            function showView(view) { loginView.classList.add('hidden'); dashboardView.classList.add('hidden'); view.classList.remove('hidden'); }
+
+            // --- FUNCIONES DE CARGA DE DATOS ---
+
+            /** Carga y renderiza la lista de categorías en los menús y el panel de admin. */
+            async function loadCategories() {
+                try {
+                    const categories = await apiFetch('/categorias');
+                    const formSelect = document.getElementById('categoria');
+                    const filterSelect = document.getElementById('filter-categoria');
+                    formSelect.innerHTML = ''; categories.forEach(cat => formSelect.innerHTML += `<option value="${cat.id}">${cat.nombre}</option>`);
+                    filterSelect.innerHTML = '<option value="">Todas</option>'; categories.forEach(cat => filterSelect.innerHTML += `<option value="${cat.nombre}">${cat.nombre}</option>`);
+                    categoriesTableBody.innerHTML = ''; categories.forEach(cat => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `<td data-label="Nombre">${cat.nombre}</td><td data-label="Acciones" class="actions-cell"><button class="btn-delete-cat" data-id="${cat.id}" title="Eliminar">🗑️</button></td>`;
+                        categoriesTableBody.appendChild(row);
+                    });
+                } catch (error) { console.error('Error al cargar categorías:', error); }
+            }
+
+            /** Carga las boletas aplicando filtros y paginación y las renderiza en la tabla. */
+            async function loadBoletas(page = 1) {
+                const creador = document.getElementById('filter-creador').value;
+                const fecha_inicio = document.getElementById('filter-fecha-inicio').value;
+                const fecha_fin = document.getElementById('filter-fecha-fin').value;
+                const categoria = document.getElementById('filter-categoria').value;
+                const razon = document.getElementById('filter-razon').value;
+                let queryParams = `?page=${page}`;
+                if (creador) queryParams += `&creador=${encodeURIComponent(creador)}`;
+                if (fecha_inicio) queryParams += `&fecha_inicio=${fecha_inicio}`;
+                if (fecha_fin) queryParams += `&fecha_fin=${fecha_fin}`;
+                if (categoria) queryParams += `&categoria=${categoria}`;
+                if (razon) queryParams += `&razon=${razon}`;
+                try {
+                    const data = await apiFetch(`/boletas${queryParams}`);
+                    boletasTableBody.innerHTML = '';
+                    data.boletas.forEach(boleta => {
+                        const row = document.createElement('tr');
+                        const razonTexto = boleta.razon_modificacion ? `✏️ (${boleta.razon_modificacion})` : '';
+                        row.innerHTML = `<td data-label="Fecha">${boleta.fecha} ${razonTexto}</td><td data-label="Categoría">${boleta.categoria}</td><td data-label="Monto Total">$${boleta.monto_total.toLocaleString('es-CL')}</td><td data-label="Notas">${boleta.notas || ''}</td><td data-label="Creador">${boleta.creador}</td><td data-label="Imagen">${boleta.imagen_url ? `<button class="btn-view-image" data-filename="${boleta.imagen_url}" title="Ver Imagen">📸</button>` : 'N/A'}</td><td data-label="Acciones" class="actions-cell">${boleta.is_deleted ? '<span>Eliminada</span>' : `<button class="btn-edit" data-id="${boleta.id}" title="Editar">✏️</button><button class="btn-delete" data-id="${boleta.id}" title="Eliminar">🗑️</button>`}</td>`;
+                        boletasTableBody.appendChild(row);
+                    });
+                    
+                    paginationControls.innerHTML = '';
+                    if (data.total_pages > 1) {
+                        if (data.has_prev) { const prevButton = document.createElement('button'); prevButton.textContent = '‹ Anterior'; prevButton.className = 'btn btn-secondary'; prevButton.dataset.page = data.current_page - 1; paginationControls.appendChild(prevButton); }
+                        const pageInfo = document.createElement('span'); pageInfo.textContent = ` Página ${data.current_page} de ${data.total_pages} `; pageInfo.style.margin = '0 1rem'; paginationControls.appendChild(pageInfo);
+                        if (data.has_next) { const nextButton = document.createElement('button'); nextButton.textContent = 'Siguiente ›'; nextButton.className = 'btn btn-secondary'; nextButton.dataset.page = data.current_page + 1; paginationControls.appendChild(nextButton); }
+                    }
+                } catch (error) { console.error('Error al cargar boletas:', error); if (error.message.includes('inválida')) { logout(); } }
+            }
+
+            /** Cierra la sesión del usuario. */
+            function logout() {
+                localStorage.removeItem('apiKey');
+                localStorage.removeItem('userRole');
+                showView(loginView);
+            }
+
+            // --- EVENT LISTENERS ---
+
+            // Navegación principal
+            navSearchBtn.addEventListener('click', () => showDashboardTab('search'));
+            navAddBtn.addEventListener('click', () => { showDashboardTab('add'); boletaForm.reset(); formDetailsContainer.classList.add('hidden'); boletaPreview.classList.add('hidden'); formTitle.textContent = 'Agregar Nueva Boleta'; });
+            navAdminBtn.addEventListener('click', () => showDashboardTab('admin'));
+
+            // Botones para ver contraseña
+            togglePasswordBtn.addEventListener('click', () => {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                togglePasswordBtn.textContent = type === 'password' ? 'Mostrar' : 'Ocultar';
+            });
+            toggleNewPasswordBtn.addEventListener('click', () => {
+                const type = newPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                newPasswordInput.setAttribute('type', type);
+                toggleNewPasswordBtn.textContent = type === 'password' ? 'Mostrar' : 'Ocultar';
+            });
+
+            // Vista previa de imagen
+            boletaFileInput.addEventListener('change', () => {
+                const file = boletaFileInput.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        boletaPreview.src = e.target.result;
+                        boletaPreview.classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    boletaPreview.classList.add('hidden');
+                }
+            });
+
+            // Detectar cambios manuales en el formulario de boletas
+            fechaInput.addEventListener('input', checkForManualChanges);
+            montoInput.addEventListener('input', checkForManualChanges);
+
+            // Formulario de Login
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                loginError.classList.add('hidden');
+                try {
+                    const data = await apiFetch('/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+                    localStorage.setItem('apiKey', data.api_key);
+                    localStorage.setItem('userRole', data.role);
+                    if (data.role === 'admin') {
+                        navAdminBtn.classList.remove('hidden');
+                    } else {
+                        navAdminBtn.classList.add('hidden');
+                    }
+                    showView(dashboardView); loadBoletas(); loadCategories(); showDashboardTab('search');
+                } catch (error) { loginError.textContent = `Error de inicio de sesión: ${error.message}`; loginError.classList.remove('hidden'); }
+            });
+
+            // Botón de Logout
+            logoutBtn.addEventListener('click', logout);
+
+            // Botón de OCR
+            uploadBtn.addEventListener('click', async () => {
+                const file = boletaFileInput.files[0];
+                if (!file) { boletaError.textContent = 'Por favor, selecciona una imagen primero.'; boletaError.classList.remove('hidden'); return; }
+                boletaError.classList.add('hidden'); uploadBtn.textContent = 'Leyendo...'; uploadBtn.disabled = true;
+                const formData = new FormData(); formData.append('boleta_image', file);
+                try {
+                    const apiKey = localStorage.getItem('apiKey');
+                    const response = await fetch('/api/boletas/upload', { method: 'POST', headers: { 'X-Api-Key': apiKey }, body: formData });
+                    if (!response.ok) { const errData = await response.json(); throw new Error(errData.msg || 'Error al procesar la imagen.'); }
+                    const data = await response.json();
+                    formDetailsContainer.classList.remove('hidden');
+                    if (data.success) {
+                        const fechaFinal = data.fecha_sugerida || '';
+                        const montoFinal = data.monto_sugerido ? data.monto_sugerido.toString() : '';
+                        ocrData = { fecha: fechaFinal, monto: montoFinal };
+                        fechaInput.value = fechaFinal;
+                        montoInput.value = montoFinal;
+                        razonModificacionInput.value = '';
+                        document.getElementById('datos-modificados-check').checked = false;
+                    } else {
+                        boletaError.textContent = data.message;
+                        boletaError.classList.remove('hidden');
+                        fechaInput.value = '';
+                        montoInput.value = '';
+                        razonModificacionInput.value = 'Baja Calidad';
+                        document.getElementById('datos-modificados-check').checked = true;
+                    }
+                } catch (error) {
+                    boletaError.textContent = error.message;
+                    boletaError.classList.remove('hidden');
+                } finally {
+                    uploadBtn.textContent = 'Paso 2: Leer Datos de Imagen';
+                    uploadBtn.disabled = false;
+                }
+            });
+
+            // Formulario de Boletas (Crear y Editar)
+            boletaForm.addEventListener('submit', async (e) => {
+                e.preventDefault(); boletaError.classList.add('hidden');
+                const boletaId = document.getElementById('edit-boleta-id').value;
+                const isEditing = boletaId !== '';
+                const url = isEditing ? `/boletas/${boletaId}` : '/boletas/manual';
+                try {
+                    if (isEditing) {
+                        const boletaData = {
+                            fecha: document.getElementById('fecha').value,
+                            monto_total: document.getElementById('monto').value,
+                            categoria_id: document.getElementById('categoria').value,
+                            notas: document.getElementById('notas').value
+                        };
+                        await apiFetch(url, { method: 'PUT', body: JSON.stringify(boletaData) });
+                    } else {
+                        const formData = new FormData();
+                        formData.append('fecha', fechaInput.value);
+                        formData.append('monto_total', montoInput.value);
+                        formData.append('categoria_id', document.getElementById('categoria').value);
+                        formData.append('notas', document.getElementById('notas').value);
+                        formData.append('razon_modificacion', razonModificacionInput.value);
+                        const imageFile = boletaFileInput.files[0];
+                        if (imageFile) { formData.append('boleta_image', imageFile); }
+                        const apiKey = localStorage.getItem('apiKey');
+                        const fetchResponse = await fetch(`${API_URL}${url}`, { method: 'POST', headers: { 'X-Api-Key': apiKey }, body: formData });
+                         if (!fetchResponse.ok) { const errData = await fetchResponse.json(); throw new Error(errData.msg || 'Error al agregar boleta.'); }
+                    }
+                    boletaForm.reset(); document.getElementById('edit-boleta-id').value = '';
+                    boletaPreview.classList.add('hidden');
+                    formDetailsContainer.classList.add('hidden'); formTitle.textContent = 'Agregar Nueva Boleta';
+                    submitBoletaBtn.textContent = 'Agregar Boleta'; loadBoletas(); showDashboardTab('search');
+                } catch (error) { boletaError.textContent = `Error: ${error.message}`; boletaError.classList.remove('hidden'); }
+            });
+
+            // Botones de la tabla (Editar, Borrar, Ver Imagen)
+            boletasTableBody.addEventListener('click', async (e) => {
+                const target = e.target.closest('button');
+                if (!target) return;
+
+                if (target.classList.contains('btn-view-image')) {
+                    const filename = target.dataset.filename;
+                    try {
+                        const apiKey = localStorage.getItem('apiKey');
+                        const response = await fetch(`/api/uploads/${filename}`, { headers: { 'X-Api-Key': apiKey } });
+                        if (!response.ok) { throw new Error('No se pudo cargar la imagen o no tienes permiso.'); }
+                        const imageBlob = await response.blob();
+                        const imageUrl = URL.createObjectURL(imageBlob);
+                        window.open(imageUrl, '_blank');
+                    } catch (error) { alert(`Error: ${error.message}`); }
+                }
+
+                const boletaId = target.dataset.id;
+                if (target.classList.contains('btn-delete')) {
+                    if (confirm(`¿Estás seguro de que quieres eliminar la boleta #${boletaId}?`)) {
+                        try {
+                            const apiKey = localStorage.getItem('apiKey');
+                            await fetch(`/api/boletas/${boletaId}`, { method: 'DELETE', headers: { 'X-Api-Key': apiKey } });
+                            loadBoletas();
+                        } catch (error) { alert(`Error: ${error.message}`); }
+                    }
+                }
+                if (target.classList.contains('btn-edit')) {
+                    showDashboardTab('add'); const row = target.closest('tr');
+                    document.getElementById('edit-boleta-id').value = boletaId;
+                    fechaInput.value = row.cells[0].textContent.trim().split(' ')[0];
+                    montoInput.value = row.cells[2].textContent.replace(/\D/g, '');
+                    const categoriaNombre = row.cells[1].textContent.trim();
+                    const categoriaSelect = document.getElementById('categoria');
+                    for(let i=0; i < categoriaSelect.options.length; i++){
+                        if(categoriaSelect.options[i].text === categoriaNombre){
+                            categoriaSelect.value = categoriaSelect.options[i].value;
+                            break;
+                        }
+                    }
+                    document.getElementById('notas').value = row.cells[3].textContent.trim();
+                    razonModificacionInput.value = 'Corrección Manual';
+                    formTitle.textContent = `Editando Boleta #${boletaId}`;
+                    submitBoletaBtn.textContent = 'Guardar Cambios';
+                    formDetailsContainer.classList.remove('hidden'); window.scrollTo(0, 0);
+                }
+            });
+            
+            // Formularios del Panel de Admin
+            filterForm.addEventListener('submit', (e) => { e.preventDefault(); loadBoletas(1); });
+            paginationControls.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { const page = e.target.dataset.page; if (page) { loadBoletas(parseInt(page, 10)); } } });
+            createUserForm.addEventListener('submit', async (e) => {
+                e.preventDefault(); createUserError.classList.add('hidden'); createUserSuccess.classList.add('hidden');
+                const userData = { username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, is_admin: document.getElementById('is-admin-check').checked };
+                try {
+                    const result = await apiFetch('/users', { method: 'POST', body: JSON.stringify(userData) });
+                    createUserSuccess.textContent = result.msg; createUserSuccess.classList.remove('hidden'); createUserForm.reset();
+                } catch (error) { createUserError.textContent = `Error: ${error.message}`; createUserError.classList.remove('hidden'); }
+            });
+            categoryForm.addEventListener('submit', async (e) => {
+                e.preventDefault(); categoryError.classList.add('hidden');
+                const categoryData = { nombre: document.getElementById('new-category-name').value };
+                try {
+                    await apiFetch('/categorias', { method: 'POST', body: JSON.stringify(categoryData) });
+                    categoryForm.reset(); loadCategories();
+                } catch (error) { categoryError.textContent = `Error: ${error.message}`; categoryError.classList.remove('hidden'); }
+            });
+            categoriesTableBody.addEventListener('click', async (e) => {
+                if(e.target.classList.contains('btn-delete-cat')){
+                    const catId = e.target.dataset.id;
+                    if(confirm('¿Seguro que quieres eliminar esta categoría? Solo se puede si no está en uso.')){
+                        try {
+                            const apiKey = localStorage.getItem('apiKey');
+                            const response = await fetch(`/api/categorias/${catId}`, { method: 'DELETE', headers: { 'X-Api-Key': apiKey } });
+                            if(!response.ok) {
+                                const errData = await response.json();
+                                throw new Error(errData.msg);
+                            }
+                            loadCategories();
+                        } catch (error) { alert(`Error: ${error.message}`); }
+                    }
+                }
+            });
+
+            // Estado Inicial de la Aplicación
+            if (localStorage.getItem('apiKey')) {
+                if (localStorage.getItem('userRole') === 'admin') { navAdminBtn.classList.remove('hidden'); }
+                showView(dashboardView); loadBoletas(); loadCategories(); showDashboardTab('search');
+            } else {
+                showView(loginView);
+            }
+        });
+    </script>
+</body>
+</html>

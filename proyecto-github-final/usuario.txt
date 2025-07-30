@@ -1,0 +1,73 @@
+Manual de Usuario: Sistema de Gestión de Boletas
+1. Introducción
+¡Bienvenido al Sistema de Gestión de Boletas! Esta guía te mostrará cómo usar la aplicación para registrar y administrar tus gastos de forma eficiente. La aplicación te permite digitalizar tus boletas subiendo una imagen, y el sistema leerá los datos por ti.
+
+2. Tipos de Usuario
+Existen dos tipos de cuenta en el sistema:
+
+Usuario Normal: Puede agregar, ver, editar y eliminar únicamente sus propias boletas.
+
+Administrador: Tiene permisos totales. Puede ver, filtrar, editar y eliminar las boletas de todos los usuarios y gestionar la configuración del sistema.
+
+3. Iniciar Sesión
+Para comenzar, ingresa tu nombre de usuario y contraseña en la pantalla principal. Puedes hacer clic en el botón "Mostrar" para verificar que tu contraseña esté bien escrita antes de presionar "Ingresar".
+
+4. Panel Principal (Dashboard)
+Una vez dentro, verás un panel con hasta tres pestañas principales:
+
+Buscar Boletas: La vista por defecto. Aquí puedes buscar, filtrar y ver todas las boletas a las que tienes acceso.
+
+Agregar Boleta: El formulario para registrar nuevos gastos mediante la subida de una imagen.
+
+Panel de Admin: (Visible solo para administradores) Un panel especial para gestionar usuarios y categorías.
+
+5. Cómo Agregar una Nueva Boleta
+El sistema está diseñado para que el primer paso sea siempre leer una imagen.
+
+Ve a la pestaña "Agregar Boleta".
+
+Paso 1: Subir Imagen: Haz clic en "Seleccionar archivo" y elige una foto de tu boleta. Verás una pequeña vista previa de la imagen.
+
+Paso 2: Leer Datos: Haz clic en el botón "Paso 2: Leer Datos de Imagen". El sistema se tomará unos segundos para procesar la imagen.
+
+Paso 3: Verificar y Guardar:
+
+Aparecerá el resto del formulario. Si el sistema tuvo éxito, rellenará la Fecha y el Monto Total.
+
+Si el sistema no pudo leer los datos, mostrará un mensaje de advertencia y podrás rellenar el formulario manualmente. La boleta se guardará marcada como de "Baja Calidad".
+
+Revisa los datos. Si corriges manualmente algún campo que el sistema sugirió, la boleta se marcará automáticamente como de "Corrección Manual".
+
+Completa la Categoría y las Notas.
+
+Finalmente, haz clic en "Paso 3: Agregar Boleta" para guardar el registro.
+
+6. Buscar y Administrar Boletas
+En la pestaña "Buscar Boletas", puedes usar el panel de filtros para encontrar registros específicos por:
+
+Creador (solo Admins)
+
+Rango de Fechas
+
+Categoría
+
+Tipo de Modificación ("Baja Calidad OCR" o "Corrección Manual")
+
+La tabla de resultados te mostrará las boletas que coincidan con tu búsqueda.
+
+✏️ (Lápiz): Indica que una boleta fue modificada.
+
+📸 (Cámara): Haz clic para ver la imagen original de la boleta.
+
+Acciones:
+
+Editar (✏️): Carga los datos de la boleta en el formulario para que puedas modificarlos.
+
+Eliminar (🗑️): Marca una boleta como eliminada. Un usuario normal no la verá más, pero un administrador la seguirá viendo como "Eliminada".
+
+7. Funciones del Administrador
+Si tienes una cuenta de administrador, tendrás acceso a la pestaña "Panel de Admin". Desde aquí podrás:
+
+Crear Nuevos Usuarios: Rellena el formulario para crear nuevas cuentas, y decide si serán administradores o usuarios normales marcando la casilla correspondiente.
+
+Gestionar Categorías: Añade nuevas categorías de gasto que estarán disponibles para todos los usuarios en los formularios, o elimina las existentes (solo si no están en uso).

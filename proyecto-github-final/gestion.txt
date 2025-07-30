@@ -1,0 +1,116 @@
+Manual Final: Sistema de Gestión de Boletas
+1. Introducción y Visión General
+Este documento es la guía completa para la instalación, uso y futuro despliegue del Sistema de Gestión de Boletas. La aplicación es una herramienta full-stack diseñada para la digitalización y administración de gastos a través de un sistema de OCR (Reconocimiento Óptico de Caracteres), con roles de usuario diferenciados y una interfaz web responsiva.
+
+2. Guía de Instalación Local
+Sigue estos pasos para ejecutar el proyecto en una computadora local para desarrollo o pruebas.
+
+2.1. Prerrequisitos
+Tener Python (versión 3.10 o superior) instalado.
+
+Acceso a una terminal o línea de comandos (CMD, PowerShell, Terminal, etc.).
+
+2.2. Pasos de Instalación
+Obtener el Código: Descarga y descomprime el proyecto en una carpeta en tu computadora.
+
+Abrir una Terminal: Navega con la terminal a la carpeta principal del proyecto (la que contiene el archivo run.py).
+
+Crear Entorno Virtual:
+
+Bash
+
+python -m venv venv
+Activar Entorno Virtual:
+
+En Windows: venv\Scripts\activate
+
+En macOS/Linux: source venv/bin/activate
+
+Instalar Dependencias: Con el entorno activado, instala todas las librerías necesarias. La primera vez, este paso puede tardar varios minutos mientras descarga los modelos de OCR.
+
+Bash
+
+pip install -r requirements.txt
+2.3. Configuración del Entorno
+En la carpeta principal del proyecto, crea los siguientes dos archivos:
+
+Archivo .flaskenv (para configurar Flask):
+
+FLASK_APP=run.py
+FLASK_ENV=development
+Archivo .env (para guardar secretos):
+
+# Reemplaza esto con una clave segura que generes
+SECRET_KEY="UNA_CLAVE_SECRETA_Y_ALEATORIA_PARA_FLASK"
+2.4. Ejecutar la Aplicación
+Tienes dos métodos para iniciar el servidor:
+
+Método 1 (Línea de Comandos):
+
+Bash
+
+flask run
+Método 2 (Doble Clic en Windows):
+
+Usa el script iniciar_servidor.bat. Simplemente haz doble clic en él.
+
+Una vez iniciado, podrás acceder a la aplicación en tu navegador en la dirección: http://127.0.0.1:5000/
+
+3. Creación y Gestión de Usuarios
+La aplicación ofrece múltiples formas de crear usuarios, adaptadas tanto para la configuración inicial como para la gestión diaria.
+
+3.1. Creación del Primer Administrador (Automático)
+La forma más sencilla de empezar. La aplicación asignará automáticamente el rol de administrador al primer usuario que se registre en una base de datos limpia.
+
+Si ya has creado usuarios, detén el servidor y ejecuta el script resetear_base_de_datos.bat (o elimina manualmente la carpeta instance).
+
+Inicia el servidor.
+
+Crea tu primer usuario a través de la interfaz de la aplicación o con el siguiente comando curl en una nueva terminal:
+
+Bash
+
+curl -X POST -H "Content-Type: application/json" -d "{\"username\": \"admin\", \"password\": \"clave_segura\"}" http://127.0.0.1:5000/api/register
+Cualquier usuario que se cree después de este será un usuario normal.
+
+3.2. Creación desde el Panel de Admin (Recomendado para el día a día)
+Una vez que hayas iniciado sesión como administrador, puedes crear más usuarios de forma visual:
+
+Ve a la pestaña "Panel de Admin".
+
+Rellena el formulario en la sección "Crear Nuevo Usuario".
+
+Marca la casilla "¿Es Administrador?" si deseas que el nuevo usuario también tenga permisos de administrador.
+
+Haz clic en "Crear Usuario".
+
+3.3. Creación desde la Terminal (Método Avanzado)
+Para desarrolladores, el método más rápido es usar el comando de terminal personalizado.
+
+Para crear un usuario normal:
+
+Bash
+
+flask create-user nombredeusuario clave123
+Para crear un administrador:
+
+Bash
+
+flask create-user nombredeadmin clave456 --admin
+4. Plan de Despliegue a Producción (Pasos Futuros)
+La aplicación está actualmente configurada para un entorno de demostración local. Para "pasarla a la web" (desplegarla en un servidor de producción), se necesitarán los siguientes pasos clave. La buena noticia es que el código ya está preparado para que esta transición sea sencilla.
+
+4.1. Configurar una Base de Datos de Producción
+Qué es: Se debe cambiar la base de datos de desarrollo (SQLite) a un sistema más robusto como PostgreSQL o MySQL, que están diseñados para soportar múltiples usuarios concurrentes.
+
+Cómo se hace: Esto se configura cambiando la variable de entorno DATABASE_URI para que apunte a la dirección de la nueva base de datos en la nube.
+
+4.2. Activar el Almacenamiento de Imágenes en la Nube
+Qué es: En lugar de guardar las imágenes en una carpeta local del servidor, se deben subir a un servicio de almacenamiento de objetos como Amazon S3, Google Cloud Storage o Azure Blob Storage. Esto es más seguro, escalable y eficiente.
+
+Cómo se hace: Implica "descomentar" y completar la lógica que ya preparamos en el archivo project/routes.py dentro de la función create_boleta. Se necesitará una cuenta en el servicio en la nube y la librería correspondiente (ej. boto3 para AWS).
+
+4.3. Usar un Servidor Web de Producción (WSGI)
+Qué es: El comando flask run inicia un servidor de desarrollo que no es adecuado para un entorno real. Se debe usar un servidor WSGI (Web Server Gateway Interface) como Gunicorn o uWSGI.
+
+Cómo se hace: Se instala Gunicorn (pip install gunicorn) y se cambia el comando de inicio del servidor a gunicorn run:app. Plataformas como Render o Heroku facilitan enormemente esta configuración.
